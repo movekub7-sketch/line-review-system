@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ส่งแบบประเมิน LINE OA</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, "Tahoma", sans-serif;
+        color: #172033;
+        background: #f5f7fb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(680px, 100%);
+        background: #ffffff;
+        border: 1px solid #d8dee9;
+        border-radius: 8px;
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(22, 32, 51, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+        line-height: 1.25;
+      }
+
+      p {
+        margin: 0 0 22px;
+        color: #526070;
+        line-height: 1.6;
+      }
+
+      label {
+        display: block;
+        margin: 16px 0 8px;
+        font-weight: 700;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid #bac4d3;
+        border-radius: 6px;
+        padding: 12px 14px;
+        font: inherit;
+        color: #172033;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        padding: 12px 18px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #1db446;
+        color: white;
+      }
+
+      .secondary {
+        background: #edf1f7;
+        color: #172033;
+      }
+
+      #result {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 6px;
+        display: none;
+        line-height: 1.5;
+      }
+
+      #result.ok {
+        display: block;
+        background: #e9f8ef;
+        color: #126d31;
+      }
+
+      #result.error {
+        display: block;
+        background: #fff1f0;
+        color: #b42318;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ส่งแบบประเมิน LINE OA</h1>
+      <p>กรอก userId ของลูกค้าและรหัสแอดมิน จากนั้นกดส่ง ระบบจะส่ง Flex Message แบบประเมินไปยังลูกค้า</p>
+
+      <form id="ratingForm">
+        <label for="to">LINE userId</label>
+        <textarea id="to" name="to" placeholder="เช่น Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required></textarea>
+
+        <label for="adminToken">รหัสแอดมิน</label>
+        <input id="adminToken" name="adminToken" type="password" placeholder="ADMIN_TOKEN" required />
+
+        <div class="actions">
+          <button class="primary" type="submit">ส่งแบบประเมิน</button>
+          <button class="secondary" type="button" id="copyText">คัดลอกคำว่า ประเมิน</button>
+        </div>
+
+        <div id="result"></div>
+      </form>
+    </main>
+
+    <script>
+      const form = document.getElementById("ratingForm");
+      const result = document.getElementById("result");
+      const copyText = document.getElementById("copyText");
+
+      function showResult(type, message) {
+        result.className = type;
+        result.textContent = message;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const to = document.getElementById("to").value.trim();
+        const adminToken = document.getElementById("adminToken").value.trim();
+
+        if (!to || !adminToken) {
+          showResult("error", "กรุณากรอก userId และรหัสแอดมิน");
+          return;
+        }
+
+        try {
+          const response = await fetch("/send-rating", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-token": adminToken
+            },
+            body: JSON.stringify({ to })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            showResult("error", data.error || "ส่งไม่สำเร็จ กรุณาตรวจสอบข้อมูลอีกครั้ง");
+            return;
+          }
+
+          showResult("ok", "ส่งแบบประเมินสำเร็จแล้ว");
+        } catch (error) {
+          showResult("error", "เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่");
+        }
+      });
+
+      copyText.addEventListener("click", async () => {
+        await navigator.clipboard.writeText("ประเมิน");
+        showResult("ok", "คัดลอกคำว่า ประเมิน แล้ว");
+      });
+    </script>
+  </body>
+</html>
