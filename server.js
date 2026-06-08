@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const line = require("@line/bot-sdk");
+const path = require("path");
 const createRatingFlex = require("./flex/ratingFlex");
 const { createReviewFlex, createThankYouFlex } = require("./flex/reviewFlex");
 const createLowScoreFlex = require("./flex/lowScoreFlex");
@@ -19,7 +20,8 @@ const requiredEnvs = [
   "LINE_CHANNEL_ACCESS_TOKEN",
   "LINE_CHANNEL_SECRET",
   "GOOGLE_REVIEW_URL",
-  "FACEBOOK_REVIEW_URL"
+  "FACEBOOK_REVIEW_URL",
+  "ADMIN_TOKEN"
 ];
 
 // ตรวจตั้งแต่ตอนเริ่มระบบ เพื่อให้รู้ทันทีว่าขาดค่า .env ตัวไหน
@@ -36,6 +38,11 @@ app.get("/", (req, res) => {
   });
 });
 
+// หน้าเว็บแอดมินสำหรับกรอก userId แล้วกดส่งแบบประเมิน
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
 // Endpoint สำหรับเช็กว่า server ยังทำงานอยู่ ใช้ได้ทั้งตอนทดสอบและตอน deploy
 app.get("/health", (req, res) => {
   res.json({
@@ -48,6 +55,10 @@ app.get("/health", (req, res) => {
 // ตัวอย่าง body: { "to": "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }
 app.post("/send-rating", express.json(), async (req, res) => {
   try {
+    if (!isAuthorizedAdmin(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { to } = req.body;
 
     if (!to) {
@@ -121,6 +132,15 @@ function getRandomReviewUrl() {
 
   const randomIndex = Math.floor(Math.random() * reviewUrls.length);
   return reviewUrls[randomIndex];
+}
+
+function isAuthorizedAdmin(req) {
+  const adminToken = process.env.ADMIN_TOKEN;
+  const tokenFromHeader = req.get("x-admin-token");
+  const tokenFromBody = req.body && req.body.adminToken;
+
+  // ถ้าไม่ได้ตั้ง ADMIN_TOKEN จะไม่อนุญาตให้เรียก /send-rating เพื่อกัน endpoint เปิดสาธารณะ
+  return Boolean(adminToken && (tokenFromHeader === adminToken || tokenFromBody === adminToken));
 }
 
 const port = process.env.PORT || 3000;
