@@ -69,6 +69,11 @@ app.post("/send-rating", express.json(), async (req, res) => {
     return res.json({ success: true });
   } catch (error) {
     console.error("Failed to send rating Flex Message:", error);
+    console.error("LINE API error detail:", {
+      statusCode: error.statusCode,
+      statusMessage: error.statusMessage,
+      originalError: error.originalError && error.originalError.response && error.originalError.response.data
+    });
     return res.status(500).json({ error: "Failed to send rating Flex Message" });
   }
 });
@@ -88,8 +93,19 @@ async function handleEvent(event) {
   // กรณีลูกค้าพิมพ์คำว่า "ประเมิน" ในแชท ระบบจะตอบกลับด้วยแบบประเมิน
   if (event.type === "message" && event.message.type === "text") {
     const text = event.message.text.trim();
+    const lowerText = text.toLowerCase();
 
-    if (text === "ประเมิน" || text.toLowerCase() === "rating") {
+    // ใช้สำหรับเช็ก userId จริงของแชทนี้ เพื่อนำไปกรอกหน้า /admin
+    if (lowerText === "uid" || lowerText === "userid" || lowerText === "user id") {
+      const userId = event.source && event.source.userId;
+
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: userId ? `LINE userId ของคุณคือ\n${userId}` : "ไม่พบ userId ของแชทนี้"
+      });
+    }
+
+    if (text === "ประเมิน" || lowerText === "rating") {
       return client.replyMessage(event.replyToken, createRatingFlex());
     }
 
